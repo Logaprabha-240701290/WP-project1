@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import StarRating from './StarRating';
 import { getGenreColor } from '../utils/helpers';
+import { getImageUrl } from '../api/axios';
 
 const BookCard = ({ book, onWishlistToggle, isWishlisted = false, showOwner = true }) => {
   const [imgError, setImgError] = useState(false);
@@ -15,7 +16,7 @@ const BookCard = ({ book, onWishlistToggle, isWishlisted = false, showOwner = tr
       <div className="book-card-cover-container">
         {book.image_url && !imgError ? (
           <img
-            src={book.image_url}
+            src={getImageUrl(book.image_url)}
             alt={book.title}
             className="book-card-cover-img"
             onError={() => setImgError(true)}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import api from '../../api/axios';
+import api, { getImageUrl } from '../../api/axios';
 import Breadcrumb from '../../components/Breadcrumb';
 import Loader from '../../components/Loader';
 import { useAuth } from '../../context/AuthContext';
@@ -304,7 +304,7 @@ const EditBook = () => {
                 </div>
               ) : currentImageUrl ? (
                 <div className="preview-wrap">
-                  <img src={currentImageUrl} alt="Current cover" className="image-preview-img" />
+                  <img src={getImageUrl(currentImageUrl)} alt="Current cover" className="image-preview-img" />
                   <span className="badge-current-photo">Current Photo</span>
                 </div>
               ) : null}

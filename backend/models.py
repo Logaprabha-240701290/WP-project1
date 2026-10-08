@@ -90,7 +90,7 @@ class Book(db.Model):
     genre = db.Column(db.String(50), nullable=False, index=True)
     condition = db.Column(db.String(50), nullable=False)  # 'New', 'Like New', 'Good', 'Fair'
     description = db.Column(db.Text, nullable=True)
-    image = db.Column(db.String(255), nullable=True)
+    image = db.Column(db.String(500), nullable=True)
     type = db.Column(db.String(20), default='lend', nullable=False)  # 'lend' or 'exchange'
     status = db.Column(db.String(20), default='available', nullable=False)  # 'available', 'requested', 'borrowed'
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
@@ -110,7 +110,13 @@ class Book(db.Model):
         return False
 
     def to_dict(self, base_url="http://localhost:5000"):
-        image_url = f"{base_url}/uploads/{self.image}" if self.image else None
+        if self.image:
+            if self.image.startswith('http://') or self.image.startswith('https://'):
+                image_url = self.image
+            else:
+                image_url = f"{base_url}/uploads/{self.image}"
+        else:
+            image_url = None
         owner_dict = self.owner.to_public_dict() if self.owner else None
         
         # Check active borrower if borrowed

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import api from '../../api/axios';
+import api, { getImageUrl } from '../../api/axios';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import Loader from '../../components/Loader';
 import { useAuth } from '../../context/AuthContext';
@@ -143,7 +143,7 @@ const ManageBooks = () => {
                 <tr key={b.id} className={b.is_overdue ? 'row-overdue' : ''}>
                   <td className="table-cover-cell">
                     {b.image_url ? (
-                      <img src={b.image_url} alt={b.title} className="table-thumb" />
+                      <img src={getImageUrl(b.image_url)} alt={b.title} className="table-thumb" />
                     ) : (
                       <div className="table-thumb-placeholder">
                         <i className="fa-solid fa-book"></i>

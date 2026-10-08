@@ -1,7 +1,18 @@
 import axios from 'axios';
 
+export const API_BASE_URL = import.meta.env.VITE_API_URL;
+export const BACKEND_BASE_URL = (import.meta.env.VITE_API_URL || '').replace(/\/api\/?$/, '');
+
+export const getImageUrl = (imagePath) => {
+  if (!imagePath) return null;
+  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+    return imagePath;
+  }
+  return `${BACKEND_BASE_URL}${imagePath.startsWith('/') ? '' : '/'}${imagePath}`;
+};
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
+  baseURL: import.meta.env.VITE_API_URL,
   headers: {
     'Content-Type': 'application/json',
   },

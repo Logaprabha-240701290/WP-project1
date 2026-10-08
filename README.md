@@ -15,8 +15,9 @@
 4. [Demo Accounts & Credentials](#demo-accounts--credentials)
 5. [Complete API Route Documentation](#complete-api-route-documentation)
 6. [Core Business Logic Rules](#core-business-logic-rules)
-7. [Troubleshooting Guide](#troubleshooting-guide)
-8. [College Project Viva Q&A](#college-project-viva-qa)
+7. [Production Deployment (Render & Vercel)](#production-deployment-render--vercel)
+8. [Troubleshooting Guide](#troubleshooting-guide)
+9. [College Project Viva Q&A](#college-project-viva-qa)
 
 ---
 
@@ -293,6 +294,99 @@ Expected output:
 Results: 8/8 steps passed.
 [SUCCESS] All test flow steps PASSED flawlessly!
 ```
+
+---
+
+## Production Deployment (Render & Vercel)
+
+This section provides complete, step-by-step instructions to deploy the BookLoop project to production:
+- **Backend on Render** (or serverless on Vercel)
+- **Frontend on Vercel**
+- **Connected through your GitHub repository**
+
+---
+
+### Step A: Push to GitHub
+1. Stage, commit, and push your code to your repository:
+   ```powershell
+   git add .
+   git commit -m "Configure BookLoop for Render backend and Vercel frontend deployment"
+   git push origin main
+   ```
+   *(If you are connecting a brand new repository, create a repository on [GitHub](https://github.com/new), then run `git remote add origin https://github.com/<YOUR_USER>/<YOUR_REPO>.git` and `git push -u origin main`).*
+
+---
+
+### Step B: Deploy Backend on Render (Web Service)
+1. Go to the [Render Dashboard](https://dashboard.render.com/) and click **New +** > **Web Service**.
+2. Connect your GitHub repository.
+3. Configure the service settings:
+   - **Name**: `bookloop-backend` (or a name of your choice)
+   - **Region**: Choose the region closest to you (e.g., Oregon or Frankfurt)
+   - **Root Directory**: `backend`
+   - **Runtime**: `Python 3`
+   - **Build Command**: `pip install -r requirements.txt`
+   - **Start Command**: `gunicorn app:app`
+4. In the **Environment Variables** section, add:
+   - `SECRET_KEY`: `<generate-a-secure-random-string>`
+   - `JWT_SECRET_KEY`: `<generate-a-secure-random-string>`
+   - `DATABASE_URL`: Your Postgres connection string from [Neon.tech](https://neon.tech) or [Supabase](https://supabase.com).  
+     *(BookLoop automatically converts any `postgres://` connection string to `postgresql://`).*  
+     *(If not provided, the local SQLite database `backend/bookloop.db` will be used as a fallback).*
+   - `CLOUDINARY_URL` *(Optional)*: `cloudinary://<api_key>:<api_secret>@<cloud_name>` from [Cloudinary](https://cloudinary.com) for persistent cloud cover photo uploads.
+5. Click **Create Web Service**. Wait for the build and deploy to complete. Copy your live Render URL (e.g. `https://bookloop-backend.onrender.com`).
+
+---
+
+### Step C: Deploy Frontend on Vercel
+1. Go to the [Vercel Dashboard](https://vercel.com/) and click **Add New...** > **Project**.
+2. Import your GitHub repository.
+3. Configure the project:
+   - **Framework Preset**: `Vite`
+   - **Root Directory**: Click Edit and select `frontend`
+4. Expand **Environment Variables** and add:
+   - `VITE_API_URL`: `https://YOUR-BACKEND.onrender.com/api`  
+     *(Replace with your actual Render URL from Step B, making sure it ends with `/api`).*
+5. Click **Deploy**.
+6. When deployment finishes, copy your live frontend URL (e.g. `https://bookloop-frontend.vercel.app`).
+
+---
+
+### Step D: Update CORS on Render
+1. Go back to your Render dashboard for `bookloop-backend`.
+2. Under the **Environment** tab, add or update:
+   - `FRONTEND_URL`: `https://YOUR-FRONTEND.vercel.app` *(without trailing slash)*
+3. Click **Save Changes** and allow the service to redeploy.
+
+---
+
+### Alternative: Deploy Backend on Vercel (Serverless)
+You can also deploy the backend as a second Vercel project:
+1. In Vercel, click **Add New...** > **Project** and select your repository.
+2. Set **Root Directory** to `backend`.
+3. Add environment variables: `DATABASE_URL` (Postgres on Neon or Supabase), `SECRET_KEY`, `JWT_SECRET_KEY`, and `CLOUDINARY_URL`.
+4. Click **Deploy**. Vercel will automatically route requests using `backend/vercel.json` and `backend/api/index.py`.
+
+---
+
+### Step E: Post-Deployment Smoke Test Checklist
+Test your live Vercel application using this verification checklist:
+- [ ] **1. Register**: Register a new student account (verify 3 free starting credits appear in navbar).
+- [ ] **2. Login**: Sign in with the registered credentials.
+- [ ] **3. Add Book with Cover Image**: Post a new book with a cover photo (verify image displays properly).
+- [ ] **4. Request Book**: Log in as another account and submit a request for the book.
+- [ ] **5. Accept Request**: Log in as the book owner and accept the request (verify 1 credit is deducted and due date is set to 14 days).
+- [ ] **6. Return Book**: Mark the book as returned from the owner's history page (verify 1 credit is awarded to the owner).
+- [ ] **7. Rate Peer**: Submit a 1-5 star review and comment on the completed exchange.
+- [ ] **8. Admin Governance**: Log into `/admin/login` as `admin@bookloop.com`, inspect stats, and verify user/book moderation.
+
+---
+
+### Known Free Tier Limitations
+- **Render Inactivity Sleep**: On Render's free tier, the web service spins down (sleeps) after 15 minutes of inactivity. The first request after sleep may take 30–50 seconds while the instance wakes up.
+- **Ephemeral Storage**: Render free-tier instances have an ephemeral local disk. Local SQLite database files (`bookloop.db`) and local files in `uploads/` will reset whenever the service restarts or redeploys. To ensure permanent data persistence in production:
+  - Use a free managed Postgres database via `DATABASE_URL` (e.g., [Neon](https://neon.tech) or [Supabase](https://supabase.com)).
+  - Use free Cloudinary storage via `CLOUDINARY_URL` for book cover photos.
 
 ---
 

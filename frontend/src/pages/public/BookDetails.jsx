@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
-import api from '../../api/axios';
+import api, { getImageUrl } from '../../api/axios';
 import Breadcrumb from '../../components/Breadcrumb';
 import StarRating from '../../components/StarRating';
 import Loader from '../../components/Loader';
@@ -146,7 +146,7 @@ const BookDetails = () => {
             <div className="details-image-frame">
               {book.image_url && !imgError ? (
                 <img
-                  src={book.image_url}
+                  src={getImageUrl(book.image_url)}
                   alt={book.title}
                   className="details-img"
                   onError={() => setImgError(true)}

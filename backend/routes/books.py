@@ -7,6 +7,57 @@ from routes.auth_helpers import auth_required, get_current_user, allowed_file
 
 books_bp = Blueprint('books', __name__)
 
+def save_book_image(image_file):
+    """Save image to Cloudinary if configured; otherwise save to local filesystem."""
+    has_cloudinary = bool(
+        current_app.config.get('CLOUDINARY_URL') or
+        (current_app.config.get('CLOUDINARY_CLOUD_NAME') and
+         current_app.config.get('CLOUDINARY_API_KEY') and
+         current_app.config.get('CLOUDINARY_API_SECRET'))
+    )
+    if has_cloudinary:
+        try:
+            import cloudinary
+            import cloudinary.uploader
+            if current_app.config.get('CLOUDINARY_CLOUD_NAME'):
+                cloudinary.config(
+                    cloud_name=current_app.config.get('CLOUDINARY_CLOUD_NAME'),
+                    api_key=current_app.config.get('CLOUDINARY_API_KEY'),
+                    api_secret=current_app.config.get('CLOUDINARY_API_SECRET'),
+                    secure=True
+                )
+            result = cloudinary.uploader.upload(
+                image_file,
+                folder="bookloop_covers",
+                resource_type="image"
+            )
+            return result.get('secure_url')
+        except Exception as e:
+            current_app.logger.error(f"Cloudinary upload error: {e}")
+
+    # Fallback to local storage
+    ext = image_file.filename.rsplit('.', 1)[1].lower()
+    image_filename = f"{uuid.uuid4().hex}.{ext}"
+    try:
+        os.makedirs(current_app.config['UPLOAD_FOLDER'], exist_ok=True)
+        image_path = os.path.join(current_app.config['UPLOAD_FOLDER'], image_filename)
+        image_file.save(image_path)
+    except OSError:
+        pass
+    return image_filename
+
+def remove_book_image(image_ref):
+    """Safely remove local image file if not an external URL."""
+    if not image_ref:
+        return
+    if not (image_ref.startswith('http://') or image_ref.startswith('https://')):
+        img_path = os.path.join(current_app.config['UPLOAD_FOLDER'], image_ref)
+        if os.path.exists(img_path):
+            try:
+                os.remove(img_path)
+            except OSError:
+                pass
+
 @books_bp.route('', methods=['GET'])
 def get_books():
     base_url = request.url_root.rstrip('/')
@@ -94,19 +145,15 @@ def add_book():
     # Form or JSON
     if request.is_json:
         data = request.get_json() or {}
-        image_filename = None
+        image_identifier = None
     else:
         data = request.form.to_dict()
         image_file = request.files.get('image')
-        image_filename = None
+        image_identifier = None
         if image_file and image_file.filename:
             if not allowed_file(image_file.filename):
                 return jsonify({'error': 'Invalid image format. Allowed: jpg, jpeg, png, webp'}), 400
-            ext = image_file.filename.rsplit('.', 1)[1].lower()
-            image_filename = f"{uuid.uuid4().hex}.{ext}"
-            os.makedirs(current_app.config['UPLOAD_FOLDER'], exist_ok=True)
-            image_path = os.path.join(current_app.config['UPLOAD_FOLDER'], image_filename)
-            image_file.save(image_path)
+            image_identifier = save_book_image(image_file)
 
     title = data.get('title', '').strip()
     author = data.get('author', '').strip()
@@ -133,7 +180,7 @@ def add_book():
         genre=genre,
         condition=condition,
         description=description or None,
-        image=image_filename,
+        image=image_identifier,
         type=book_type,
         status='available'
     )
@@ -167,21 +214,10 @@ def update_book(book_id):
         if image_file and image_file.filename:
             if not allowed_file(image_file.filename):
                 return jsonify({'error': 'Invalid image format. Allowed: jpg, jpeg, png, webp'}), 400
-            ext = image_file.filename.rsplit('.', 1)[1].lower()
-            new_filename = f"{uuid.uuid4().hex}.{ext}"
-            os.makedirs(current_app.config['UPLOAD_FOLDER'], exist_ok=True)
-            image_path = os.path.join(current_app.config['UPLOAD_FOLDER'], new_filename)
-            image_file.save(image_path)
-
-            # Remove old image file if existed
-            if book.image:
-                old_path = os.path.join(current_app.config['UPLOAD_FOLDER'], book.image)
-                if os.path.exists(old_path):
-                    try:
-                        os.remove(old_path)
-                    except OSError:
-                        pass
-            book.image = new_filename
+            
+            # Remove previous local image if applicable
+            remove_book_image(book.image)
+            book.image = save_book_image(image_file)
 
     if 'title' in data and data['title'].strip():
         book.title = data['title'].strip()
@@ -218,14 +254,8 @@ def delete_book(book_id):
     if book.status == 'borrowed':
         return jsonify({'error': 'Cannot delete a book that is currently borrowed'}), 400
 
-    # Delete image file if exists
-    if book.image:
-        img_path = os.path.join(current_app.config['UPLOAD_FOLDER'], book.image)
-        if os.path.exists(img_path):
-            try:
-                os.remove(img_path)
-            except OSError:
-                pass
+    # Delete local image file if applicable
+    remove_book_image(book.image)
 
     db.session.delete(book)
     db.session.commit()

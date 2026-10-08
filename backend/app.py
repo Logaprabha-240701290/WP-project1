@@ -11,12 +11,20 @@ def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
 
-    # Ensure uploads directory exists
-    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+    # Ensure uploads directory exists if filesystem allows
+    try:
+        os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+    except OSError:
+        pass
 
     # Initialize extensions
     db.init_app(app)
-    CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
+    frontend_url = app.config.get('FRONTEND_URL') or os.environ.get('FRONTEND_URL')
+    if frontend_url:
+        origins = [frontend_url.rstrip('/'), "http://localhost:5173", "http://127.0.0.1:5173"]
+    else:
+        origins = "*"
+    CORS(app, resources={r"/*": {"origins": origins}}, supports_credentials=True)
     jwt = JWTManager(app)
 
     # JWT Error handlers
