@@ -1,0 +1,12 @@
+import React from 'react';
+
+const Loader = ({ message = 'Loading...', fullScreen = false }) => {
+  return (
+    <div className={`loader-container ${fullScreen ? 'loader-fullscreen' : ''}`}>
+      <div className="spinner"></div>
+      <p className="loader-text">{message}</p>
+    </div>
+  );
+};
+
+export default Loader;
